@@ -9,6 +9,9 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.widget.ImageView;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static android.view.MotionEvent.INVALID_POINTER_ID;
 
 /**
@@ -27,13 +30,33 @@ public class ZoomableImageView extends ImageView {
     private int mActivePointerId = INVALID_POINTER_ID;
     float mLastTouchX;
     float mLastTouchY;
+    private List<Scale> mScaleList = new ArrayList<>();
+
+
+    private class Scale {
+        float mFactor;
+        float X;
+        float Y;
+
+        public Scale(float factor, float x, float y) {
+            mFactor = factor;
+            X = x;
+            Y = y;
+        }
+    }
 
     @Override
     protected void onDraw(Canvas canvas) {
 
 
         canvas.translate(translateX, translateY);
-        canvas.scale(scaleX, scaleY, scaleXP, scaleYP);
+        for (int i = 1; i < mScaleList.size(); i++)
+            canvas.scale(mScaleList.get(i).mFactor / mScaleList.get(i - 1).mFactor,
+                    mScaleList.get(i).mFactor / mScaleList.get(i - 1).mFactor,
+                    mScaleList.get(i).X, mScaleList.get(i).Y);
+
+        canvas.scale(scaleX / mScaleList.get(mScaleList.size() - 1).mFactor,
+                scaleY / mScaleList.get(mScaleList.size() - 1).mFactor, scaleXP, scaleYP);
 
 
         super.onDraw(canvas);
@@ -46,6 +69,7 @@ public class ZoomableImageView extends ImageView {
         mContext = context;
         gestureDetector = new GestureDetector(context, new GestureListener());
         scaleGestureDetector = new ScaleGestureDetector(context, new ScaleGestureListener());
+        mScaleList.add(new Scale(1.0f, 0f, 0f));
 
     }
 
@@ -54,6 +78,7 @@ public class ZoomableImageView extends ImageView {
         mContext = context;
         gestureDetector = new GestureDetector(context, new GestureListener());
         scaleGestureDetector = new ScaleGestureDetector(context, new ScaleGestureListener());
+        mScaleList.add(new Scale(1.0f, 0f, 0f));
 
     }
 
@@ -77,9 +102,13 @@ public class ZoomableImageView extends ImageView {
             float y = e.getY();
             // Toast.makeText(mContext, "Double Tap: Tapped at (" + x + "," + y + ")", Toast.LENGTH_SHORT).show();
             if (scaleX == 1.f)
-               mScaleFactor= scaleX = scaleY = 3.0f;
+                mScaleFactor = scaleX = scaleY = 3.0f;
             else
-              mScaleFactor=  scaleX = scaleY = 1.0f;
+                mScaleFactor = scaleX = scaleY = 1.0f;
+
+            mScaleList.clear();
+            mScaleList.add(new Scale(1.0f, 0f, 0f));
+            mScaleList.add(new Scale(mScaleFactor, scaleXP, scaleYP));
 
             scaleXP = x;
             scaleYP = y;
@@ -181,8 +210,10 @@ public class ZoomableImageView extends ImageView {
             scaleY = mScaleFactor;
 
 
-            scaleXP = getWidth() / 2;
-            scaleYP = getHeight() / 2;
+            // scaleXP = getWidth() / 2;
+            // scaleYP = getHeight() / 2;
+            scaleXP = detector.getFocusX();
+            scaleYP = detector.getFocusY();
 
             mPreviousScale = currentScale;
             invalidate();
@@ -193,7 +224,7 @@ public class ZoomableImageView extends ImageView {
 
         @Override
         public void onScaleEnd(ScaleGestureDetector detector) {
-
+            mScaleList.add(new Scale(mScaleFactor, scaleXP, scaleYP));
             mPreviousScale = 1.f;
             super.onScaleEnd(detector);
         }
